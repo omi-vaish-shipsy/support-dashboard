@@ -29,6 +29,44 @@ const WINDOW_DAYS = Number(process.env.WINDOW_DAYS || 30);
 const MAX_TICKETS = Number(process.env.MAX_TICKETS || Infinity);
 const CONCURRENCY = Number(process.env.CONCURRENCY || 6);
 
+// ---- org allowlist ----
+// Analyse ONLY these orgs (user-supplied canonical list). Each ticket's
+// rev_org display_name is normalised (lowercased; "[WMS]" prefix and
+// "Account"/"Default Workspace" suffixes stripped; punctuation/spaces removed)
+// and matched against the aliases below — this absorbs DevRev's messy display
+// variants (e.g. "SBT Account - Default Workspace", "[WMS] Meatigo",
+// "xhawi.com - Default Workspace"). Real DevRev spellings resolved 2026-06-02
+// via rev_org search are noted per entry where they differ from the label.
+// Set ORG_FILTER=off to disable the filter and pull every org.
+const ORG_FILTER_ON = String(process.env.ORG_FILTER || "on").toLowerCase() !== "off";
+const ORG_ALLOWLIST = [
+  { label: "NXLOGISTICS",     aliases: ["nxlogistics"] },
+  { label: "SBT",             aliases: ["sbt"] },
+  { label: "XHAWI",           aliases: ["xhawi"] },
+  { label: "CHRONODIALY",     aliases: ["chronodial"] },          // DevRev: "chronodiali"
+  { label: "PRO CONECT",      aliases: ["proconnect", "proconect"] },
+  { label: "JEEBLY",          aliases: ["jeebly"] },
+  { label: "FLOWPL",          aliases: ["flowpl"] },
+  { label: "FLOWEXPRESS",     aliases: ["flowexpress"] },         // DevRev: "Flow Express" / "flowexpress"
+  { label: "WAKEFIT",         aliases: ["wakefit"] },
+  { label: "SWIGGYTMS",       aliases: ["swiggy"] },
+  { label: "IWEXPRESS",       aliases: ["iwexpress"] },
+  { label: "ASTER KSA",       aliases: ["aster"] },               // DevRev: "Aster Pharmacy"
+  { label: "MEATGO",          aliases: ["meatigo", "meatgo"] },   // DevRev: "meatigo" / "[WMS] Meatigo"
+  { label: "BURJEELPHARMACY", aliases: ["burjeel"] },
+  { label: "KFG",             aliases: ["kfg"] },                 // DevRev: "KFG (Kout Food Group)"
+  { label: "APPOLO",          aliases: ["apollo", "appolo"] },    // DevRev: "Apollo247"
+];
+const normOrg = (s) => String(s || "").toLowerCase()
+  .replace(/\[wms\]/g, "")
+  .replace(/default workspace|account/g, "")
+  .replace(/[^a-z0-9]/g, "");
+function orgAllowed(orgName) {
+  if (!ORG_FILTER_ON) return true;
+  const n = normOrg(orgName);
+  return !!n && ORG_ALLOWLIST.some((o) => o.aliases.some((a) => n.includes(a)));
+}
+
 // ---- token (env or .env) ----
 function loadToken() {
   if (process.env.DEVREV_TOKEN) return process.env.DEVREV_TOKEN;
@@ -158,6 +196,7 @@ async function fetchTickets(afterISO, beforeISO) {
     for (const w of works) {
       const day = isoDay(w.created_date);
       if (day < afterISO || day > beforeISO) continue; // client-side guard if server ignores filter
+      if (!orgAllowed(orgOf(w))) continue;             // org allowlist (skip before Friday-comment fetch)
       out.push(w);
       if (out.length >= MAX_TICKETS) break;
     }
@@ -234,6 +273,16 @@ const dist = rows.reduce((a, r) => ((a[r.outcome] = (a[r.outcome] || 0) + 1), a)
 console.log("Outcome distribution:", dist);
 const scored = rows.filter((r) => r.score != null);
 console.log(`Scores parsed on ${scored.length}/${rows.length} rows.`);
+
+if (ORG_FILTER_ON) {
+  const matched = {}, missing = [];
+  for (const o of ORG_ALLOWLIST) {
+    const n = rows.filter((r) => o.aliases.some((a) => normOrg(r.org).includes(a))).length;
+    if (n) matched[o.label] = n; else missing.push(o.label);
+  }
+  console.log("Org allowlist matches:", matched);
+  if (missing.length) console.log(`⚠ allowlist orgs with 0 tickets in window (${start}→${end}):`, missing.join(", "));
+}
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify({

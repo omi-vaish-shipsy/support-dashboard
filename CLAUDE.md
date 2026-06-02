@@ -13,6 +13,11 @@ over an exact date range.
   Window is configurable: `WINDOW_DAYS=90 npm run data` (default 30); `MAX_TICKETS`,
   `CONCURRENCY` also supported. Re-run to refresh — there is no live server.
   Classification rules + known gaps: `.claude/rules/devrev-friday.md`.
+- **Org allowlist:** the pipeline analyses only a fixed set of orgs (the `ORG_ALLOWLIST`
+  in `scripts/build-dataset.mjs`); tickets from other orgs are dropped before
+  classification. Display-name variants (`- Default Workspace`/`Account` suffixes,
+  `[WMS]` prefix, case) are normalised and matched by alias. Run `ORG_FILTER=off npm run
+  data` to pull every org instead.
 
 ## DevRev
 
