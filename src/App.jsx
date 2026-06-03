@@ -31,7 +31,9 @@ const ATTEMPTED = ["RanFull", "RanRCAOnly", "Skipped", "Failed"];
 /* ================================================================== *
  *  SAMPLE DATA  — replace generator with live DevRev + Friday log feed
  * ================================================================== */
-const TODAY = new Date("2026-06-02T00:00:00Z");
+const TODAY = new Date("2026-06-02T00:00:00Z"); // sample-data anchor + date-control fallback bounds
+const DAY = 86400000;
+const NOW = () => Date.now();                    // live anchor for rolling "last Nd" presets
 const iso = (d) => d.toISOString().slice(0, 10);
 const addDays = (base, n) => { const d = new Date(base); d.setUTCDate(d.getUTCDate() + n); return d; };
 // When live DevRev data is loaded, bound the date controls to what we actually stored.
@@ -118,7 +120,9 @@ const SAMPLE_TICKETS = (() => {
 
       rows.push({
         id: `TKT-${id++}`, org: org.n, cohort: org.c, sev, pod, stage, channel, hour,
-        date: day.toISOString().slice(0, 10), daysAgo: d,
+        date: day.toISOString().slice(0, 10),
+        createdAt: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), hour, Math.floor(rng() * 60))).toISOString(),
+        daysAgo: d,
         eligible, excludeReason, outcome, failReason,
         triggerLag, runtime, total: triggerLag != null ? triggerLag + runtime : null,
         score, frUsable: outcome === "RanFull",
@@ -139,6 +143,10 @@ const SAMPLE_TICKETS = (() => {
 const REAL_ROWS = Array.isArray(DATASET?.rows) ? DATASET.rows : [];
 const USING_REAL = REAL_ROWS.length > 0;
 const TICKETS = USING_REAL ? REAL_ROWS : SAMPLE_TICKETS;
+// Rolling presets anchor: live clock for real data (tracks DevRev's live last_n_days preset, incl.
+// dropping the aged-out boundary ticket); for the frozen sample data, anchor to its last day so
+// 7d/30d/90d still show something.
+const PRESET_ANCHOR_MS = USING_REAL ? NOW() : new Date(DATA_MAX + "T23:59:59.999Z").getTime();
 
 // Dropdown / breakdown dimension lists, derived from whatever data is loaded.
 // Canonical order is honoured when known; unknown real values are appended alphabetically.
@@ -167,9 +175,20 @@ const median = (a) => { if (!a.length) return 0; const s = [...a].sort((x, y) =>
 const perc = (a, p) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor((p / 100) * s.length))]; };
 
 function applyFilters(rows, f, win) {
-  const lo = win ? win[0] : f.start, hi = win ? win[1] : f.end;
+  // Preset mode → rolling-instant window on each ticket's exact timestamp (matches DevRev's
+  // last_n_days preset). Range mode → whole IST calendar days (matches DevRev explicit ranges).
+  // `win` override (used for previous-period deltas) is polymorphic: {instant:[lo,hi]} for preset,
+  // ["YYYY-MM-DD","YYYY-MM-DD"] for range.
+  let dateOk;
+  if (f.mode === "preset") {
+    const [loMs, hiMs] = win?.instant ?? [PRESET_ANCHOR_MS - f.presetDays * DAY, Infinity];
+    dateOk = (r) => { const t = Date.parse(r.createdAt); return t >= loMs && t <= hiMs; };
+  } else {
+    const lo = win ? win[0] : f.start, hi = win ? win[1] : f.end;
+    dateOk = (r) => r.date >= lo && r.date <= hi;
+  }
   return rows.filter(r =>
-    r.date >= lo && r.date <= hi &&
+    dateOk(r) &&
     (f.org === "All" || r.org === f.org) &&
     (f.cohort === "All" || r.cohort === f.cohort) &&
     (f.pod === "All" || r.pod === f.pod) &&
@@ -400,7 +419,14 @@ const devLink = (id) => `https://app.devrev.ai/shipsy/works/${id}`;
  *  APP
  * ================================================================== */
 export default function App() {
-  const [range, setRange] = useState({ start: REAL_WIN ? REAL_WIN.start : iso(addDays(TODAY, -30)), end: DATA_MAX });
+  // A preset is a rolling last-N-days window; start/end are derived display dates so the date
+  // inputs, labels, and trend axis still have ISO bounds even in preset mode.
+  const presetRange = (n) => ({
+    mode: "preset", presetDays: n,
+    start: iso(new Date(PRESET_ANCHOR_MS - n * DAY)),
+    end: iso(new Date(PRESET_ANCHOR_MS)),
+  });
+  const [range, setRange] = useState(() => presetRange(30)); // default: last 30 days (rolling)
   const [eligibleOnly, setEligibleOnly] = useState(true);
   const [s, setS] = useState({ org: "All", cohort: "All", pod: "All", sev: "All", stage: "All", channel: "All", state: "All" });
   const set = (k) => (v) => setS(p => ({ ...p, [k]: v }));
@@ -408,12 +434,18 @@ export default function App() {
   const span = spanDaysOf(range.start, range.end);
   const f = { ...range, eligibleOnly, ...s };
   const cur = useMemo(() => applyFilters(TICKETS, f), [f]);
-  const prevWin = useMemo(() => [iso(addDays(new Date(range.start + "T00:00:00Z"), -1 - span)), iso(addDays(new Date(range.start + "T00:00:00Z"), -1))], [range.start, span]);
+  const prevWin = useMemo(() => {
+    if (range.mode === "preset") { // previous N rolling days: [anchor-2N, anchor-N]
+      const hi = PRESET_ANCHOR_MS - range.presetDays * DAY;
+      return { instant: [hi - range.presetDays * DAY, hi] };
+    }
+    return [iso(addDays(new Date(range.start + "T00:00:00Z"), -1 - span)), iso(addDays(new Date(range.start + "T00:00:00Z"), -1))];
+  }, [range.mode, range.presetDays, range.start, span]);
   const prev = useMemo(() => applyFilters(TICKETS, f, prevWin), [f, prevWin]);
   const excluded = useMemo(() => countWhere(applyFilters(TICKETS, { ...f, eligibleOnly: false }), r => !r.eligible), [f]);
 
-  const setPreset = (n) => setRange({ start: iso(addDays(TODAY, -n)), end: DATA_MAX });
-  const isPreset = (n) => range.end === DATA_MAX && range.start === iso(addDays(TODAY, -n));
+  const setPreset = (n) => setRange(presetRange(n));
+  const isPreset = (n) => range.mode === "preset" && range.presetDays === n;
   const dateLabel = `${fmtLong(range.start)} → ${fmtLong(range.end)}`;
 
   const exportJson = () => {
@@ -455,11 +487,11 @@ export default function App() {
           <span style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: 0.5 }}>Date range — exact</span>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <input type="date" value={range.start} min={DATA_MIN} max={range.end}
-              onChange={e => e.target.value && setRange(r => ({ ...r, start: e.target.value }))}
+              onChange={e => e.target.value && setRange(r => ({ ...r, mode: "range", start: e.target.value }))}
               style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 9, padding: "6px 10px", fontSize: 12.5, color: T.ink, fontFamily: "inherit", cursor: "pointer" }} />
             <span style={{ color: T.faint }}>→</span>
             <input type="date" value={range.end} min={range.start} max={DATA_MAX}
-              onChange={e => e.target.value && setRange(r => ({ ...r, end: e.target.value }))}
+              onChange={e => e.target.value && setRange(r => ({ ...r, mode: "range", end: e.target.value }))}
               style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 9, padding: "6px 10px", fontSize: 12.5, color: T.ink, fontFamily: "inherit", cursor: "pointer" }} />
             <div style={{ display: "flex", gap: 3, marginLeft: 4 }}>
               {[{ l: "7d", v: 7 }, { l: "30d", v: 30 }, { l: "90d", v: 90 }].map(d => (
@@ -485,7 +517,7 @@ export default function App() {
 
       <p style={{ marginTop: 26, fontSize: 11.5, color: T.faint, textAlign: "center" }}>
         {USING_REAL
-          ? `Live DevRev data · ${DATASET.count} tickets · ${DATASET.window?.start}→${DATASET.window?.end} · generated ${DATASET.generatedAt?.slice(0, 10)}. Outcome states reconstructed from Friday's ticket comments; score = Friday confidence/quality (no separate human-review feed yet).`
+          ? `Live DevRev data · ${DATASET.count} tickets · ${DATASET.window?.start}→${DATASET.window?.end} IST (whole calendar days) · generated ${DATASET.generatedAt?.replace("T", " ").slice(0, 16)} UTC. Presets (7d/30d/90d) apply a rolling last-N-days cutoff (now−N×24h, matching DevRev's last_n_days); exact start/end dates select whole IST calendar days. Outcome states reconstructed from Friday's ticket comments; score = Friday confidence/quality (no separate human-review feed yet).`
           : "Illustrative sample data."}{" "}
         Coverage = (Ran · RCA+FR + Ran · RCA only) ÷ {eligibleOnly ? "eligible" : "all"} tickets. Deltas compare the selected window to the immediately preceding one.
       </p>

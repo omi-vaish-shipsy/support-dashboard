@@ -208,6 +208,9 @@ async function fetchTickets(afterISO, beforeISO) {
     });
     const works = r.works || [];
     for (const w of works) {
+      // Whole IST calendar days [afterISO, beforeISO] — matches DevRev explicit date
+      // ranges. (The dashboard derives rolling "last Nd" presets client-side from
+      // each row's createdAt timestamp.)
       const day = isoDay(w.created_date);
       if (day < afterISO || day > beforeISO) continue; // client-side guard if server ignores filter
       if (!subtypeAllowed(w)) continue;                // Support-only (matches DevRev Friday vista)
@@ -247,7 +250,7 @@ const today = new Date();
 const end = isoDay(today);
 const start = isoDay(new Date(today.getTime() - WINDOW_DAYS * 86400000));
 
-console.log(`Friday dataset build — window ${start} → ${end} (${WINDOW_DAYS}d), max ${MAX_TICKETS} tickets, concurrency ${CONCURRENCY}, subtype ${SUBTYPE_FILTER_ON ? SUBTYPE_FILTER : "off"}`);
+console.log(`Friday dataset build — window ${start} → ${end} (${WINDOW_DAYS}d IST, whole calendar days), max ${MAX_TICKETS} tickets, concurrency ${CONCURRENCY}, subtype ${SUBTYPE_FILTER_ON ? SUBTYPE_FILTER : "off"}`);
 console.log("Fetching tickets from DevRev…");
 const tickets = await fetchTickets(start, end);
 console.log(`→ ${tickets.length} tickets in window.`);
@@ -263,6 +266,7 @@ const rows = await mapPool(tickets, CONCURRENCY, async (t) => {
     id: t.display_id,
     don,
     date: day,
+    createdAt: t.created_date,   // full ISO timestamp — UI derives rolling "last Nd" presets from this
     daysAgo: Math.round((new Date(end) - new Date(day)) / 86400000),
     org: orgOf(t),
     cohort: cohortOf(t),
