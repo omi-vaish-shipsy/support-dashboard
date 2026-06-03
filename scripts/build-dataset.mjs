@@ -29,6 +29,17 @@ const WINDOW_DAYS = Number(process.env.WINDOW_DAYS || 30);
 const MAX_TICKETS = Number(process.env.MAX_TICKETS || Infinity);
 const CONCURRENCY = Number(process.env.CONCURRENCY || 6);
 
+// ---- subtype filter ----
+// Friday is a *support* agent; the DevRev "Friday" vista filters to subtype=Support,
+// so non-Support ticket subtypes (e.g. "uat", "Project") are dropped before
+// classification — they otherwise inflate the dashboard vs DevRev. Compared
+// case-insensitively against the ticket's `subtype` field. Set TICKET_SUBTYPE=off
+// to disable, or TICKET_SUBTYPE=<name> to filter to a different subtype.
+const SUBTYPE_FILTER = String(process.env.TICKET_SUBTYPE || "support").toLowerCase();
+const SUBTYPE_FILTER_ON = SUBTYPE_FILTER !== "off";
+const subtypeAllowed = (t) =>
+  !SUBTYPE_FILTER_ON || String(t.subtype || "").toLowerCase() === SUBTYPE_FILTER;
+
 // ---- org allowlist ----
 // Analyse ONLY these orgs (user-supplied canonical list). Each ticket's
 // rev_org display_name is normalised (lowercased; "[WMS]" prefix and
@@ -196,6 +207,7 @@ async function fetchTickets(afterISO, beforeISO) {
     for (const w of works) {
       const day = isoDay(w.created_date);
       if (day < afterISO || day > beforeISO) continue; // client-side guard if server ignores filter
+      if (!subtypeAllowed(w)) continue;                // Support-only (matches DevRev Friday vista)
       if (!orgAllowed(orgOf(w))) continue;             // org allowlist (skip before Friday-comment fetch)
       out.push(w);
       if (out.length >= MAX_TICKETS) break;
@@ -232,7 +244,7 @@ const today = new Date();
 const end = isoDay(today);
 const start = isoDay(new Date(today.getTime() - WINDOW_DAYS * 86400000));
 
-console.log(`Friday dataset build — window ${start} → ${end} (${WINDOW_DAYS}d), max ${MAX_TICKETS} tickets, concurrency ${CONCURRENCY}`);
+console.log(`Friday dataset build — window ${start} → ${end} (${WINDOW_DAYS}d), max ${MAX_TICKETS} tickets, concurrency ${CONCURRENCY}, subtype ${SUBTYPE_FILTER_ON ? SUBTYPE_FILTER : "off"}`);
 console.log("Fetching tickets from DevRev…");
 const tickets = await fetchTickets(start, end);
 console.log(`→ ${tickets.length} tickets in window.`);

@@ -12,6 +12,10 @@ over an exact date range.
   comments, normalises fields into the dashboard vocabulary, and writes the dataset JSON.
   Window is configurable: `WINDOW_DAYS=90 npm run data` (default 30); `MAX_TICKETS`,
   `CONCURRENCY` also supported. Re-run to refresh — there is no live server.
+  **Subtype filter:** only `subtype=Support` tickets are analysed (matches the DevRev
+  Friday vista); non-Support subtypes (`uat`, `Project`, …) are dropped before
+  classification so the dashboard doesn't over-count vs DevRev. `TICKET_SUBTYPE=off npm
+  run data` disables it; `TICKET_SUBTYPE=<name>` filters to a different subtype.
   Classification rules + known gaps: `.claude/rules/devrev-friday.md`.
 - **Org allowlist:** the pipeline analyses only a fixed set of orgs (the `ORG_ALLOWLIST`
   in `scripts/build-dataset.mjs`); tickets from other orgs are dropped before
