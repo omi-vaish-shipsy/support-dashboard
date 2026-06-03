@@ -22,7 +22,7 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 50 # all-org pull does ~2.3k per-ticket timeline fetches (~20-30 min)
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +39,7 @@ jobs:
       - name: Refresh dataset from DevRev
         env:
           DEVREV_TOKEN: ${{ secrets.DEVREV_TOKEN }}
+          CONCURRENCY: "10" # speed up the all-org pull (API has 429 backoff)
         run: npm run data
 
       - name: Commit & push if the dataset changed

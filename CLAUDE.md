@@ -17,11 +17,13 @@ over an exact date range.
   classification so the dashboard doesn't over-count vs DevRev. `TICKET_SUBTYPE=off npm
   run data` disables it; `TICKET_SUBTYPE=<name>` filters to a different subtype.
   Classification rules + known gaps: `.claude/rules/devrev-friday.md`.
-- **Org allowlist:** the pipeline analyses only a fixed set of orgs (the `ORG_ALLOWLIST`
-  in `scripts/build-dataset.mjs`); tickets from other orgs are dropped before
-  classification. Display-name variants (`- Default Workspace`/`Account` suffixes,
-  `[WMS]` prefix, case) are normalised and matched by alias. Run `ORG_FILTER=off npm run
-  data` to pull every org instead.
+- **Org scope:** by default the pipeline analyses **every org** (all ~150+ orgs with
+  Support tickets in the window). To restrict to a fixed set instead, run `ORG_FILTER=on
+  npm run data`, which keeps only the orgs in `ORG_ALLOWLIST` (`scripts/build-dataset.mjs`)
+  — display-name variants (`- Default Workspace`/`Account` suffixes, `[WMS]` prefix, case)
+  are normalised and matched by alias. Note: in the default all-org mode the outcome mix is
+  dominated by `Never triggered`/`Skipped` for non-Shipsy-mapped orgs (Friday only acts on
+  mapped orgs) — that gap is real coverage data, not a bug.
 
 ## DevRev
 

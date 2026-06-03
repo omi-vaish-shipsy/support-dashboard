@@ -40,16 +40,16 @@ const SUBTYPE_FILTER_ON = SUBTYPE_FILTER !== "off";
 const subtypeAllowed = (t) =>
   !SUBTYPE_FILTER_ON || String(t.subtype || "").toLowerCase() === SUBTYPE_FILTER;
 
-// ---- org allowlist ----
-// Analyse ONLY these orgs (user-supplied canonical list). Each ticket's
+// ---- org allowlist (opt-in: only used when ORG_FILTER=on) ----
+// When enabled, analyse ONLY these orgs (user-supplied canonical list). Each ticket's
 // rev_org display_name is normalised (lowercased; "[WMS]" prefix and
 // "Account"/"Default Workspace" suffixes stripped; punctuation/spaces removed)
 // and matched against the aliases below — this absorbs DevRev's messy display
 // variants (e.g. "SBT Account - Default Workspace", "[WMS] Meatigo",
 // "xhawi.com - Default Workspace"). Real DevRev spellings resolved 2026-06-02
 // via rev_org search are noted per entry where they differ from the label.
-// Set ORG_FILTER=off to disable the filter and pull every org.
-const ORG_FILTER_ON = String(process.env.ORG_FILTER || "on").toLowerCase() !== "off";
+// Default: analyse EVERY org. Set ORG_FILTER=on to restrict to the allowlist below.
+const ORG_FILTER_ON = String(process.env.ORG_FILTER || "off").toLowerCase() === "on";
 const ORG_ALLOWLIST = [
   { label: "NXLOGISTICS",     aliases: ["nxlogistics"] },
   { label: "SBT",             aliases: ["sbt"] },
