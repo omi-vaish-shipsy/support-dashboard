@@ -1,13 +1,39 @@
 {
-  "generatedAt": "2026-06-03T21:58:02.168Z",
+  "generatedAt": "2026-06-03T23:55:19.072Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-05",
     "end": "2026-06-04",
     "days": 30
   },
-  "count": 2299,
+  "count": 2300,
   "rows": [
+    {
+      "id": "TKT-99711",
+      "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/99711",
+      "date": "2026-06-04",
+      "createdAt": "2026-06-03T22:44:14.821Z",
+      "daysAgo": 0,
+      "frSent": true,
+      "frSentAt": "2026-06-03T22:52:49.862537Z",
+      "frLatencyMin": 9,
+      "friOrgLabel": "SWIGGYTMS",
+      "org": "swiggytms",
+      "cohort": "5A-B2B Shipper",
+      "pod": "TBD",
+      "sev": "medium",
+      "stage": "queued",
+      "channel": "email",
+      "eligible": true,
+      "excludeReason": null,
+      "outcome": "RanFull",
+      "failReason": null,
+      "score": 6,
+      "scoreType": "confidence",
+      "frUsable": true,
+      "resolvedBy": null,
+      "sentiment": "Unhappy"
+    },
     {
       "id": "TKT-99710",
       "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/99710",
