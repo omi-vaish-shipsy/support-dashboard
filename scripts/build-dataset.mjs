@@ -77,6 +77,14 @@ function orgAllowed(orgName) {
   const n = normOrg(orgName);
   return !!n && ORG_ALLOWLIST.some((o) => o.aliases.some((a) => n.includes(a)));
 }
+// Canonical allowlist label for an org (or null). Computed regardless of ORG_FILTER so the
+// Friday-Response view can scope to the 16 orgs while masterdata keeps every org.
+function friOrgLabelOf(orgName) {
+  const n = normOrg(orgName);
+  if (!n) return null;
+  const hit = ORG_ALLOWLIST.find((o) => o.aliases.some((a) => n.includes(a)));
+  return hit ? hit.label : null;
+}
 
 // ---- token (env or .env) ----
 function loadToken() {
@@ -180,17 +188,23 @@ function classify(fridayBodies) {
 
 async function fridayBodiesFor(ticketDon) {
   const bodies = [];
+  let frSentAt = null;       // earliest Friday EXTERNAL (customer-facing) comment timestamp
   let cursor = null, pages = 0;
   do {
     const r = await api("/timeline-entries.list", { object: ticketDon, limit: 50, cursor });
     for (const e of r.timeline_entries || []) {
       const au = e.created_by || {};
       const isFriday = au.id === FRIDAY_DEVU || au.display_id === "DEVU-2940" || /(^|\b)Friday(\b|$)/.test(au.display_name || au.full_name || "");
-      if (isFriday && e.type === "timeline_comment" && e.body) bodies.push(e.body);
+      if (!isFriday || e.type !== "timeline_comment") continue;
+      if (e.body) bodies.push(e.body);
+      // A customer-facing message is an external-visibility comment (vs internal RCA/draft).
+      if (e.visibility === "external" && e.created_date) {
+        if (frSentAt == null || e.created_date < frSentAt) frSentAt = e.created_date;
+      }
     }
     cursor = r.next_cursor; pages++;
   } while (cursor && pages < 6);
-  return bodies;
+  return { bodies, frSentAt };
 }
 
 // ================= ticket fetch =================
@@ -258,7 +272,7 @@ console.log(`→ ${tickets.length} tickets in window.`);
 console.log("Reading Friday comments + classifying…");
 const rows = await mapPool(tickets, CONCURRENCY, async (t) => {
   const don = `don:core:dvrv-us-1:devo/xXjPo9nF:ticket/${t.display_id.replace(/^TKT-/, "")}`;
-  const bodies = await fridayBodiesFor(don);
+  const { bodies, frSentAt } = await fridayBodiesFor(don);
   const { outcome, failReason, score, scoreType } = classify(bodies);
   const excludeReason = eligibility(t);
   const day = isoDay(t.created_date);
@@ -268,6 +282,11 @@ const rows = await mapPool(tickets, CONCURRENCY, async (t) => {
     date: day,
     createdAt: t.created_date,   // full ISO timestamp — UI derives rolling "last Nd" presets from this
     daysAgo: Math.round((new Date(end) - new Date(day)) / 86400000),
+    // Friday customer-facing first response (Friday Response view)
+    frSent: frSentAt != null,
+    frSentAt: frSentAt || null,
+    frLatencyMin: frSentAt ? Math.round((Date.parse(frSentAt) - Date.parse(t.created_date)) / 60000) : null,
+    friOrgLabel: friOrgLabelOf(orgOf(t)),
     org: orgOf(t),
     cohort: cohortOf(t),
     pod: podOf(t),
@@ -292,6 +311,9 @@ const dist = rows.reduce((a, r) => ((a[r.outcome] = (a[r.outcome] || 0) + 1), a)
 console.log("Outcome distribution:", dist);
 const scored = rows.filter((r) => r.score != null);
 console.log(`Scores parsed on ${scored.length}/${rows.length} rows.`);
+const friRows = rows.filter((r) => r.friOrgLabel);
+const frSentRows = friRows.filter((r) => r.frSent);
+console.log(`Friday customer first-response: ${frSentRows.length}/${friRows.length} allowlisted-org tickets (external Friday comment).`);
 
 if (ORG_FILTER_ON) {
   const matched = {}, missing = [];

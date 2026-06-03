@@ -5,10 +5,9 @@ name: Refresh Friday dataset
 # Requires a repo secret named DEVREV_TOKEN (Settings → Secrets and variables → Actions).
 
 on:
-  # Hourly schedule is disabled during testing — uncomment to go live.
-  # schedule:
-  #   # Top of every hour (UTC). GitHub cron is best-effort and may run a few minutes late.
-  #   - cron: "0 * * * *"
+  schedule:
+    # Top of every hour (UTC). GitHub cron is best-effort and may run a few minutes late.
+    - cron: "0 * * * *"
   workflow_dispatch: {} # manual run from the Actions tab ("Run workflow" button)
 
 # Don't let a slow run overlap the next scheduled one.

@@ -148,6 +148,13 @@ const TICKETS = USING_REAL ? REAL_ROWS : SAMPLE_TICKETS;
 // 7d/30d/90d still show something.
 const PRESET_ANCHOR_MS = USING_REAL ? NOW() : new Date(DATA_MAX + "T23:59:59.999Z").getTime();
 
+// ---- Friday Response scope: the 16 allowlisted orgs (the only orgs Friday's customer-reply
+// flow is tracked for). friLabel maps a row to its canonical allowlist label (or null). ----
+const FRI_ORGS = ["NXLOGISTICS", "SBT", "XHAWI", "CHRONODIALY", "PRO CONECT", "JEEBLY", "FLOWPL", "FLOWEXPRESS", "WAKEFIT", "SWIGGYTMS", "IWEXPRESS", "ASTER KSA", "MEATGO", "BURJEELPHARMACY", "KFG", "APPOLO"];
+// Also track the `shipsyflamingo` workspace (where Friday's customer-reply flow runs today) as
+// a labelled org so the Friday Response view covers it alongside the 16 allowlisted orgs.
+const friLabel = (r) => r.friOrgLabel || (/flamingo/i.test(r.org || "") ? "FLAMINGO (test)" : null);
+
 // Dropdown / breakdown dimension lists, derived from whatever data is loaded.
 // Canonical order is honoured when known; unknown real values are appended alphabetically.
 const uniqOrdered = (key, order) => {
@@ -164,6 +171,20 @@ const D_PODS = uniqOrdered("pod", PODS);
 const D_SEVS = uniqOrdered("sev", SEVS);
 const D_STAGES = uniqOrdered("stage", STAGES);
 const D_CHANNELS = uniqOrdered("channel", CHANNELS);
+
+// Friday Response tab: filter options scoped to the tracked-org tickets only.
+const uniqFrom = (rows, key, order) => {
+  const present = [...new Set(rows.map((r) => r[key]).filter((v) => v != null && v !== ""))];
+  const ord = order || [];
+  return [...ord.filter((v) => present.includes(v)), ...present.filter((v) => !ord.includes(v)).sort((a, b) => String(a).localeCompare(String(b)))];
+};
+const FRI_TICKETS = TICKETS.filter((r) => friLabel(r));
+const DF_ORGS = [...FRI_ORGS, ...new Set(FRI_TICKETS.map(friLabel).filter((l) => !FRI_ORGS.includes(l)))]; // 16 labels (+ temp test org if present)
+const DF_COHORTS = uniqFrom(FRI_TICKETS, "cohort", COHORTS);
+const DF_PODS = uniqFrom(FRI_TICKETS, "pod", PODS);
+const DF_SEVS = uniqFrom(FRI_TICKETS, "sev", SEVS);
+const DF_STAGES = uniqFrom(FRI_TICKETS, "stage", STAGES);
+const DF_CHANNELS = uniqFrom(FRI_TICKETS, "channel", CHANNELS);
 
 /* ================================================================== *
  *  HELPERS
@@ -187,9 +208,11 @@ function applyFilters(rows, f, win) {
     const lo = win ? win[0] : f.start, hi = win ? win[1] : f.end;
     dateOk = (r) => r.date >= lo && r.date <= hi;
   }
+  const friday = f.view === "friday";
   return rows.filter(r =>
     dateOk(r) &&
-    (f.org === "All" || r.org === f.org) &&
+    (!friday || friLabel(r)) &&                                                   // Friday tab: tracked orgs only
+    (f.org === "All" || (friday ? friLabel(r) === f.org : r.org === f.org)) &&    // ...and filter org by canonical label
     (f.cohort === "All" || r.cohort === f.cohort) &&
     (f.pod === "All" || r.pod === f.pod) &&
     (f.sev === "All" || r.sev === f.sev) &&
@@ -427,12 +450,19 @@ export default function App() {
     end: iso(new Date(PRESET_ANCHOR_MS)),
   });
   const [range, setRange] = useState(() => presetRange(30)); // default: last 30 days (rolling)
+  const [view, setView] = useState("masterdata"); // "masterdata" | "friday"
   const [eligibleOnly, setEligibleOnly] = useState(true);
   const [s, setS] = useState({ org: "All", cohort: "All", pod: "All", sev: "All", stage: "All", channel: "All", state: "All" });
   const set = (k) => (v) => setS(p => ({ ...p, [k]: v }));
+  // Switching tabs resets filters — option sets differ per tab (e.g. org list), so selections don't carry over.
+  const switchView = (v) => { setView(v); setS({ org: "All", cohort: "All", pod: "All", sev: "All", stage: "All", channel: "All", state: "All" }); };
+  // Filter dropdown options are scoped to the active tab.
+  const opt = view === "friday"
+    ? { org: DF_ORGS, cohort: DF_COHORTS, pod: DF_PODS, sev: DF_SEVS, stage: DF_STAGES, channel: DF_CHANNELS }
+    : { org: D_ORGS, cohort: D_COHORTS, pod: D_PODS, sev: D_SEVS, stage: D_STAGES, channel: D_CHANNELS };
 
   const span = spanDaysOf(range.start, range.end);
-  const f = { ...range, eligibleOnly, ...s };
+  const f = { ...range, eligibleOnly, view, ...s };
   const cur = useMemo(() => applyFilters(TICKETS, f), [f]);
   const prevWin = useMemo(() => {
     if (range.mode === "preset") { // previous N rolling days: [anchor-2N, anchor-N]
@@ -471,6 +501,12 @@ export default function App() {
             <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, letterSpacing: -0.4 }}>Friday — Support Analytics</h1>
             <div style={{ fontSize: 12.5, color: T.muted }}>RCA + first-response coverage, reliability, quality &amp; ticket ops</div>
           </div>
+          <div style={{ display: "flex", gap: 3, marginLeft: 4 }}>
+            {[{ l: "Masterdata", v: "masterdata" }, { l: "Friday Response", v: "friday" }].map(m => (
+              <button key={m.v} onClick={() => switchView(m.v)}
+                style={{ border: `1px solid ${view === m.v ? T.accent : T.line}`, background: view === m.v ? T.accent : T.panel, color: view === m.v ? "#fff" : T.muted, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{m.l}</button>
+            ))}
+          </div>
           {USING_REAL
             ? <span title={`DevRev · ${DATASET.count} tickets · ${DATASET.window?.start}→${DATASET.window?.end}`} style={{ fontSize: 10, fontWeight: 600, color: "#2E7D5B", background: "#E7F1EA", border: "1px solid #C5DBCB", padding: "3px 8px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 0.5 }}>Live · DevRev</span>
             : <span style={{ fontSize: 10, fontWeight: 600, color: "#B5651D", background: "#FBEFDF", border: "1px solid #F0DBBE", padding: "3px 8px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 0.5 }}>Sample data</span>}
@@ -500,12 +536,12 @@ export default function App() {
             </div>
           </div>
         </div>
-        <Select label="Org" value={s.org} onChange={set("org")} options={["All", ...D_ORGS]} />
-        <Select label="Cohort" value={s.cohort} onChange={set("cohort")} options={["All", ...D_COHORTS]} />
-        <Select label="Pod" value={s.pod} onChange={set("pod")} options={["All", ...D_PODS]} />
-        <Select label="Severity" value={s.sev} onChange={set("sev")} options={["All", ...D_SEVS]} />
-        <Select label="Stage" value={s.stage} onChange={set("stage")} options={["All", ...D_STAGES]} />
-        <Select label="Channel" value={s.channel} onChange={set("channel")} options={["All", ...D_CHANNELS]} />
+        <Select label="Org" value={s.org} onChange={set("org")} options={["All", ...opt.org]} />
+        <Select label="Cohort" value={s.cohort} onChange={set("cohort")} options={["All", ...opt.cohort]} />
+        <Select label="Pod" value={s.pod} onChange={set("pod")} options={["All", ...opt.pod]} />
+        <Select label="Severity" value={s.sev} onChange={set("sev")} options={["All", ...opt.sev]} />
+        <Select label="Stage" value={s.stage} onChange={set("stage")} options={["All", ...opt.stage]} />
+        <Select label="Channel" value={s.channel} onChange={set("channel")} options={["All", ...opt.channel]} />
         <Select label="Outcome" value={s.state} onChange={set("state")} options={["All", ...STATES]} />
         <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: T.muted, cursor: "pointer", paddingBottom: 4 }}>
           <input type="checkbox" checked={eligibleOnly} onChange={e => setEligibleOnly(e.target.checked)} />
@@ -513,7 +549,9 @@ export default function App() {
         </label>
       </div>
 
-      <Overview cur={cur} prev={prev} range={range} span={span} eligibleOnly={eligibleOnly} />
+      {view === "masterdata"
+        ? <Overview cur={cur} prev={prev} range={range} span={span} eligibleOnly={eligibleOnly} />
+        : <FridayResponse cur={cur} prev={prev} range={range} span={span} eligibleOnly={eligibleOnly} />}
 
       <p style={{ marginTop: 26, fontSize: 11.5, color: T.faint, textAlign: "center" }}>
         {USING_REAL
@@ -640,6 +678,107 @@ function Overview({ cur, prev, range, span }) {
       <Panel title="By stage" icon={Layers} foot="coverage · FR use · failure colour at >15% · review /10">
         <DimMetrics rows={cur} dimKey="stage" values={D_STAGES} label="Stage" />
       </Panel>
+    </>
+  );
+}
+
+/* ================================================================== *
+ *  TAB — FRIDAY RESPONSE (customer-facing first responses, 16 allowlisted orgs)
+ * ================================================================== */
+const fmtDur = (min) => {
+  if (min == null || !isFinite(min)) return "—";
+  if (min < 60) return `${Math.round(min)}m`;
+  if (min < 1440) return `${Math.floor(min / 60)}h ${Math.round(min % 60)}m`;
+  return `${(min / 1440).toFixed(1)}d`;
+};
+
+function FridayResponse({ cur, prev, range, eligibleOnly }) {
+  const scope = cur;            // applyFilters already restricts the Friday tab to tracked orgs
+  const sent = scope.filter(r => r.frSent);
+  const prevScope = prev;
+  const prevSent = prevScope.filter(r => r.frSent);
+  const denom = (eligibleOnly ? scope.filter(r => r.eligible).length : scope.length) || 1;
+  const prevDenom = (eligibleOnly ? prevScope.filter(r => r.eligible).length : prevScope.length) || 1;
+  const cov = pct(sent.length, denom), covPrev = pct(prevSent.length, prevDenom);
+  const lat = sent.map(r => r.frLatencyMin).filter(x => x != null).sort((a, b) => a - b);
+  const med = lat.length ? perc(lat, 50) : null;
+  const p90 = lat.length ? perc(lat, 90) : null;
+  const orgsResponded = new Set(sent.map(r => friLabel(r))).size;
+
+  const labels = [...new Set([...FRI_ORGS, ...scope.map(friLabel)])];
+  const perOrg = labels.map(label => {
+    const sub = scope.filter(r => friLabel(r) === label);
+    const ss = sub.filter(r => r.frSent);
+    const ll = ss.map(r => r.frLatencyMin).filter(x => x != null).sort((a, b) => a - b);
+    return { org: label, n: sub.length, sent: ss.length, cov: pct(ss.length, sub.length || 1), medLat: ll.length ? Math.round(perc(ll, 50)) : null };
+  }).filter(r => r.n > 0);
+
+  const buckets = [
+    { l: "< 1h", lo: 0, hi: 60 }, { l: "1–4h", lo: 60, hi: 240 },
+    { l: "4–24h", lo: 240, hi: 1440 }, { l: "> 24h", lo: 1440, hi: Infinity },
+  ].map(b => ({ ...b, n: lat.filter(x => x >= b.lo && x < b.hi).length }));
+
+  const trend = daily(sent, range.start, range.end, (b) => { b.Created++; });
+
+  return (
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
+        <KPI icon={Ticket} label="FR triggered" value={fmt(sent.length)} delta={sent.length - prevSent.length} sub={`of ${fmt(denom === 1 && !scope.length ? 0 : denom)} ${eligibleOnly ? "eligible" : "tickets"}`} />
+        <KPI icon={Gauge} label="FR coverage" value={`${cov}%`} delta={Math.round((cov - covPrev) * 10) / 10} deltaGood="up" sub="sent ÷ tickets" color="#2E7D5B" />
+        <KPI icon={Timer} label="Median latency" value={fmtDur(med)} sub="creation → 1st reply" color="#C9A227" />
+        <KPI icon={Timer} label="p90 latency" value={fmtDur(p90)} sub="creation → 1st reply" />
+        <KPI icon={Building2} label="Orgs responded" value={orgsResponded} sub={`of ${FRI_ORGS.length}`} />
+      </div>
+
+      {sent.length === 0 ? (
+        <Panel title="Customer first-response" icon={Bot}>
+          <div style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.6 }}>
+            No customer first-responses from Friday in this window yet. Friday's customer-reply flow is rolling out —
+            this view auto-populates as Friday begins sending external (customer-visible) messages on the {FRI_ORGS.length} tracked orgs.
+            Latency is wall-clock (ticket creation → first external Friday message).
+          </div>
+        </Panel>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
+            <Panel title="First-response latency" icon={Timer} foot={`${fmt(sent.length)} responses · wall-clock`}>
+              {buckets.map(b => {
+                const wpc = lat.length ? Math.round(100 * b.n / lat.length) : 0;
+                return (
+                  <div key={b.l} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 9 }}>
+                    <span style={{ width: 54, fontSize: 12, color: T.muted }}>{b.l}</span>
+                    <div style={{ flex: 1, height: 8, background: "#EEEAE0", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{ width: `${wpc}%`, height: "100%", background: T.accent }} />
+                    </div>
+                    <span style={{ width: 64, textAlign: "right", fontFamily: mono, fontSize: 12 }}>{fmt(b.n)} · {wpc}%</span>
+                  </div>
+                );
+              })}
+            </Panel>
+            <Panel title="Responses sent over time" icon={Activity} foot="by ticket created day">
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={trend} margin={{ top: 4, right: 6, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={T.line} vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: T.muted }} interval={tickStep(trend.length)} />
+                  <YAxis tick={{ fontSize: 10, fill: T.muted }} allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="Created" name="Sent" fill={T.accent} radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Panel>
+          </div>
+
+          <Panel title="By org — customer first-response" icon={Building2} foot="16 allowlisted orgs · coverage = sent ÷ tickets">
+            <SortTable rows={perOrg} rowKey="org" defaultSort="sent" cols={[
+              { k: "org", l: "Org", align: "left" },
+              { k: "n", l: "Tickets" },
+              { k: "sent", l: "FR sent" },
+              { k: "cov", l: "Coverage", bar: true },
+              { k: "medLat", l: "Median latency", render: (r) => fmtDur(r.medLat) },
+            ]} />
+          </Panel>
+        </>
+      )}
     </>
   );
 }
