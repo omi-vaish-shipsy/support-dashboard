@@ -101,7 +101,10 @@ async function api(pathname, params = {}) {
   }
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const isoDay = (d) => new Date(d).toISOString().slice(0, 10);
+// Bucket dates by IST (UTC+5:30) — matches DevRev's vista date ranges and the org's
+// IST SLA schedule, so each ticket lands on the same calendar day it shows in DevRev.
+const IST_OFFSET_MS = 5.5 * 3600000;
+const isoDay = (d) => new Date(new Date(d).getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
 
 // ================= field extraction — use DevRev's own values verbatim =================
 // DevRev severity enum: blocker / high / medium / low (no SEV0–3).
