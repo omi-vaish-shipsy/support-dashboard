@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-03T08:05:01.970Z",
+  "generatedAt": "2026-06-03T08:46:05.608Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-04",
@@ -153,7 +153,7 @@
       "scoreType": null,
       "frUsable": false,
       "resolvedBy": "Product",
-      "sentiment": null
+      "sentiment": "Neutral"
     },
     {
       "id": "TKT-99560",
@@ -227,7 +227,7 @@
       "cohort": "5A-B2B LSP",
       "pod": "Finance",
       "sev": "medium",
-      "stage": "queued",
+      "stage": "work_in_progress",
       "channel": "portal",
       "eligible": true,
       "excludeReason": null,
@@ -236,7 +236,7 @@
       "score": 7,
       "scoreType": "confidence",
       "frUsable": true,
-      "resolvedBy": null,
+      "resolvedBy": "Support",
       "sentiment": null
     },
     {
@@ -584,7 +584,7 @@
       "cohort": "5A-B2B LSP",
       "pod": "Finance",
       "sev": "medium",
-      "stage": "awaiting_product_assist",
+      "stage": "awaiting_development",
       "channel": "portal",
       "eligible": true,
       "excludeReason": null,
@@ -593,7 +593,7 @@
       "score": 8,
       "scoreType": "confidence",
       "frUsable": false,
-      "resolvedBy": "Product",
+      "resolvedBy": "Engineering",
       "sentiment": "Neutral"
     },
     {
