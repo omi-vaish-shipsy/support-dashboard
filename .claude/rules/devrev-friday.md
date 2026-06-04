@@ -10,7 +10,13 @@ outcome states from DevRev alone. Friday is dev_user **DEVU-2940**
   Response` section that is not the placeholder).
 - **Ran · RCA only** — RCA present but the draft-response comment is the placeholder
   `_No "Suggested First Response" section in RCA._`
-- **Skipped** — Friday comment matches `workspace is not mapped` / `not mapped to a Shipsy org`.
+- **Skipped** — Friday comment matches `workspace is not mapped` / `not mapped to a Shipsy
+  org` / `does not have a mapped org` / `skipping auto-investigation`. (Verified real
+  marker, e.g. TKT-99716: `[Auto-Investigation] Workspace 'bdo - Default Workspace' does
+  not have a mapped org_id. Skipping auto-investigation.`)
+  NB: the bare `[Auto-Investigation]` tag prefixes EVERY Friday comment — skips and
+  failures included — so it is NOT evidence of an RCA; only the `## Root Cause Analysis`
+  heading is.
 - **Failed** — Friday comment matches `Auto-investigation failed unexpectedly` /
   `investigation failed` / `unhandled error`. (Verified real marker:
   `[Auto-Investigation] Auto-investigation failed unexpectedly. Error logged for review.`)

@@ -166,12 +166,16 @@ function parseScore(text) {
 function classify(fridayBodies) {
   if (!fridayBodies.length) return { outcome: "NeverTriggered", failReason: null, ...parseScore("") };
   const all = fridayBodies.join("\n\n");
-  if (/workspace is not mapped|not mapped to a shipsy org/i.test(all))
+  // Verified live skip markers: "workspace is not mapped", "not mapped to a Shipsy org",
+  // "Workspace '…' does not have a mapped org_id. Skipping auto-investigation."
+  if (/workspace is not mapped|not mapped to a shipsy org|does not have a mapped org|skipping auto-investigation/i.test(all))
     return { outcome: "Skipped", failReason: null, ...parseScore(all) };
   if (/investigation failed|failed to (?:complete|run) (?:the )?investigation|unhandled (?:error|exception)/i.test(all))
     return { outcome: "Failed", failReason: "Investigation failed", ...parseScore(all) };
 
-  const hasRCA = /\[Auto-Investigation\]|## Root Cause Analysis/i.test(all);
+  // The bare [Auto-Investigation] tag prefixes EVERY Friday comment (skips and failures
+  // included) — only the RCA heading itself is evidence of an actual investigation.
+  const hasRCA = /##\s*Root Cause Analysis/i.test(all);
   // Did Friday produce a usable first response?
   const noFR = /No\s*"?Suggested First Response"?\s*section/i.test(all);
   const draft = fridayBodies.find((b) => /\[Auto-Investigation Draft Response\]/i.test(b)) || "";
