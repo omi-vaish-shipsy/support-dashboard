@@ -326,7 +326,7 @@ function DimMetrics({ rows, dimKey, values, label }) {
     const sub = rows.filter(r => r[dimKey] === v);
     if (!sub.length) return null;
     const cc = stateCounts(sub); const ran = ranOf(cc);
-    const sc = sub.filter(r => r.score != null);
+    const sc = confScores(sub);
     return {
       v, n: sub.length,
       coverage: pct(ran, sub.length),
@@ -354,7 +354,7 @@ function DimMetrics({ rows, dimKey, values, label }) {
         <th style={{ ...th, textAlign: "right" }}>Coverage</th>
         <th style={{ ...th, textAlign: "right" }}>FR use</th>
         <th style={{ ...th, textAlign: "right" }}>Failure</th>
-        <th style={{ ...th, textAlign: "right" }}>Review</th>
+        <th style={{ ...th, textAlign: "right" }}>Confidence</th>
       </tr></thead>
       <tbody>
         {data.map((d, i) => (
@@ -449,7 +449,7 @@ export default function App() {
     start: iso(new Date(PRESET_ANCHOR_MS - n * DAY)),
     end: iso(new Date(PRESET_ANCHOR_MS)),
   });
-  const [range, setRange] = useState(() => presetRange(30)); // default: last 30 days (rolling)
+  const [range, setRange] = useState({ mode: "range", start: DATA_MAX, end: DATA_MAX }); // default: today (latest calendar day in data)
   const [view, setView] = useState("masterdata"); // "masterdata" | "friday"
   const [eligibleOnly, setEligibleOnly] = useState(true);
   const [s, setS] = useState({ org: "All", cohort: "All", pod: "All", sev: "All", stage: "All", channel: "All", state: "All" });
@@ -555,7 +555,7 @@ export default function App() {
 
       <p style={{ marginTop: 26, fontSize: 11.5, color: T.faint, textAlign: "center" }}>
         {USING_REAL
-          ? `Live DevRev data · ${DATASET.count} tickets · ${DATASET.window?.start}→${DATASET.window?.end} IST (whole calendar days) · generated ${DATASET.generatedAt?.replace("T", " ").slice(0, 16)} UTC. Presets (7d/30d/90d) apply a rolling last-N-days cutoff (now−N×24h, matching DevRev's last_n_days); exact start/end dates select whole IST calendar days. Outcome states reconstructed from Friday's ticket comments; score = Friday confidence/quality (no separate human-review feed yet).`
+          ? `Live DevRev data · ${DATASET.count} tickets · ${DATASET.window?.start}→${DATASET.window?.end} IST (whole calendar days) · generated ${DATASET.generatedAt?.replace("T", " ").slice(0, 16)} UTC. Presets (7d/30d/90d) apply a rolling last-N-days cutoff (now−N×24h, matching DevRev's last_n_days); exact start/end dates select whole IST calendar days. Outcome states reconstructed from Friday's ticket comments; score = Friday's own confidence score only (no human-review feed in DevRev yet; Quality Score review comments, if they ever appear, are excluded).`
           : "Illustrative sample data."}{" "}
         Coverage = (Ran · RCA+FR + Ran · RCA only) ÷ {eligibleOnly ? "eligible" : "all"} tickets. Deltas compare the selected window to the immediately preceding one.
       </p>
@@ -570,6 +570,9 @@ function stateCounts(rows) {
 }
 const ranOf = (c) => c.RanFull + c.RanRCAOnly;
 const attemptedOf = (c) => c.RanFull + c.RanRCAOnly + c.Skipped + c.Failed;
+// Friday confidence scores only — exclude future Quality Score (human review) comments
+// so the "confidence /10" labels stay accurate. Sample rows have no scoreType and pass.
+const confScores = (rows) => rows.filter(r => r.score != null && r.scoreType !== "quality");
 
 /* ================================================================== *
  *  TAB — OVERVIEW
@@ -579,14 +582,14 @@ function Overview({ cur, prev, range, span }) {
   const cov = pct(ranOf(c), cur.length), covPrev = pct(ranOf(pc), prev.length);
   const frUse = pct(c.RanFull, ranOf(c)), frPrev = pct(pc.RanFull, ranOf(pc));
   const failRate = pct(c.Failed, attemptedOf(c)), failPrev = pct(pc.Failed, attemptedOf(pc));
-  const score = cur.filter(r => r.score != null); const avg = score.length ? Math.round(score.reduce((a, r) => a + r.score, 0) / score.length * 10) / 10 : 0;
+  const score = confScores(cur); const avg = score.length ? Math.round(score.reduce((a, r) => a + r.score, 0) / score.length * 10) / 10 : 0;
   const orgsRun = new Set(cur.filter(r => RAN.includes(r.outcome)).map(r => r.org)).size;
 
   const trend = daily(cur, range.start, range.end, (b, r) => { b[r.outcome]++; });
 
   const leaderboard = D_ORGS.map(o => {
     const sub = cur.filter(r => r.org === o); const cc = stateCounts(sub);
-    const sc = sub.filter(r => r.score != null);
+    const sc = confScores(sub);
     return {
       org: o, n: sub.length, coverage: pct(ranOf(cc), sub.length),
       full: pct(cc.RanFull, sub.length), fail: pct(cc.Failed, attemptedOf(cc) || 1),
@@ -602,7 +605,7 @@ function Overview({ cur, prev, range, span }) {
         <KPI icon={Gauge} label="Coverage" value={`${cov}%`} delta={Math.round((cov - covPrev) * 10) / 10} deltaGood="up" sub="ran ÷ eligible" />
         <KPI icon={Ticket} label="FR usability" value={`${frUse}%`} delta={Math.round((frUse - frPrev) * 10) / 10} deltaGood="up" sub="RCA+FR ÷ ran" color="#2E7D5B" />
         <KPI icon={AlertTriangle} label="Failure rate" value={`${failRate}%`} delta={Math.round((failRate - failPrev) * 10) / 10} deltaGood="down" sub="failed ÷ attempted" color="#BF453B" />
-        <KPI icon={Star} label="Avg review" value={avg || "—"} sub="human score /10" color="#C9A227" />
+        <KPI icon={Star} label="Avg review" value={avg || "—"} sub="friday confidence /10" color="#C9A227" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
@@ -675,7 +678,7 @@ function Overview({ cur, prev, range, span }) {
       </div>
 
       <div style={{ height: 14 }} />
-      <Panel title="By stage" icon={Layers} foot="coverage · FR use · failure colour at >15% · review /10">
+      <Panel title="By stage" icon={Layers} foot="coverage · FR use · failure colour at >15% · confidence /10">
         <DimMetrics rows={cur} dimKey="stage" values={D_STAGES} label="Stage" />
       </Panel>
     </>
