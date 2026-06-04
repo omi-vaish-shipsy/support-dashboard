@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import {
   Building2, Ticket, Calendar, Activity, Layers, Bot, Gauge, Star,
-  Timer, AlertTriangle, Download, ExternalLink, RotateCw, ArrowUpRight, ArrowDownRight,
+  Timer, AlertTriangle, Download, ExternalLink, RotateCw, ArrowUpRight, ArrowDownRight, Info,
 } from "lucide-react";
 import DATASET from "./data/friday-dataset.json"; // live DevRev pull (npm run data); falls back to sample when empty
 
@@ -247,8 +247,29 @@ const tickStep = (points) => Math.max(0, Math.ceil(points / 9) - 1);
  * ================================================================== */
 const card = { background: T.panel, border: `1px solid ${T.line}`, borderRadius: 14, padding: 18 };
 const mono = "'IBM Plex Mono', monospace";
+const pagerBtn = (dis) => ({ border: `1px solid ${T.line}`, background: T.panel, color: dis ? T.faint : T.ink, borderRadius: 8, padding: "5px 12px", fontSize: 12, cursor: dis ? "default" : "pointer", fontFamily: "inherit", opacity: dis ? 0.5 : 1 });
 
-function KPI({ icon: Icon, label, value, sub, delta, deltaGood = "up", color }) {
+// hover ⓘ — one-line explanation of a metric
+function InfoTip({ text }) {
+  const [open, setOpen] = useState(false);
+  if (!text) return null;
+  return (
+    <span style={{ position: "relative", display: "inline-flex", marginLeft: "auto" }}
+      onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <Info size={13} color={T.faint} style={{ cursor: "help", flexShrink: 0 }} title={text} />
+      {open && (
+        <span style={{
+          position: "absolute", top: "calc(100% + 7px)", right: -6, zIndex: 30, width: 210,
+          background: T.ink, color: "#FBFAF6", border: `1px solid ${T.line}`, borderRadius: 8,
+          padding: "8px 10px", fontSize: 11.5, lineHeight: 1.5, fontWeight: 400,
+          letterSpacing: 0.1, textTransform: "none", boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
+        }}>{text}</span>
+      )}
+    </span>
+  );
+}
+
+function KPI({ icon: Icon, label, value, sub, delta, deltaGood = "up", color, info }) {
   const showDelta = delta !== undefined && delta !== null && isFinite(delta);
   const positive = delta > 0;
   const good = (deltaGood === "up" && positive) || (deltaGood === "down" && !positive);
@@ -257,7 +278,8 @@ function KPI({ icon: Icon, label, value, sub, delta, deltaGood = "up", color }) 
   return (
     <div style={{ ...card, display: "flex", flexDirection: "column", gap: 6, padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 7, color: T.muted, fontSize: 11.5, letterSpacing: 0.3, textTransform: "uppercase" }}>
-        <Icon size={14} color={color || T.accent} /> {label}
+        <Icon size={14} color={color || T.accent} style={{ flexShrink: 0 }} /> {label}
+        <InfoTip text={info} />
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
         <span style={{ fontFamily: mono, fontSize: 26, fontWeight: 600, lineHeight: 1 }}>{value}</span>
@@ -578,6 +600,10 @@ const confScores = (rows) => rows.filter(r => r.score != null && r.scoreType !==
  *  TAB — OVERVIEW
  * ================================================================== */
 function Overview({ cur, prev, range, span }) {
+  // Ticket drill-down table: filter by outcome, 10 per page.
+  const [outFilter, setOutFilter] = useState("all");
+  const [page, setPage] = useState(0);
+
   const c = stateCounts(cur), pc = stateCounts(prev);
   const cov = pct(ranOf(c), cur.length), covPrev = pct(ranOf(pc), prev.length);
   const frUse = pct(c.RanFull, ranOf(c)), frPrev = pct(pc.RanFull, ranOf(pc));
@@ -597,15 +623,23 @@ function Overview({ cur, prev, range, span }) {
     };
   }).filter(r => r.n > 0);
 
+  const tix = cur
+    .filter(r => outFilter === "all" ? true : r.outcome === outFilter)
+    .slice()
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  const PER = 10;
+  const pageCount = Math.max(1, Math.ceil(tix.length / PER));
+  const pg = Math.min(page, pageCount - 1);
+  const slice = tix.slice(pg * PER, pg * PER + PER);
 
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
-        <KPI icon={Building2} label="Orgs run on" value={orgsRun} sub={`of ${D_ORGS.length}`} />
-        <KPI icon={Gauge} label="Coverage" value={`${cov}%`} delta={Math.round((cov - covPrev) * 10) / 10} deltaGood="up" sub="ran ÷ eligible" />
-        <KPI icon={Ticket} label="FR usability" value={`${frUse}%`} delta={Math.round((frUse - frPrev) * 10) / 10} deltaGood="up" sub="RCA+FR ÷ ran" color="#2E7D5B" />
-        <KPI icon={AlertTriangle} label="Failure rate" value={`${failRate}%`} delta={Math.round((failRate - failPrev) * 10) / 10} deltaGood="down" sub="failed ÷ attempted" color="#BF453B" />
-        <KPI icon={Star} label="Avg review" value={avg || "—"} sub="friday confidence /10" color="#C9A227" />
+        <KPI icon={Building2} label="Orgs run on" value={orgsRun} sub={`of ${D_ORGS.length}`} info="Unique orgs where Friday actually ran (RCA or RCA+FR) in the selected window." />
+        <KPI icon={Gauge} label="Coverage" value={`${cov}%`} delta={Math.round((cov - covPrev) * 10) / 10} deltaGood="up" sub="ran ÷ eligible" info="Share of tickets Friday ran on: (RCA+FR + RCA-only) ÷ tickets in view." />
+        <KPI icon={Ticket} label="FR usability" value={`${frUse}%`} delta={Math.round((frUse - frPrev) * 10) / 10} deltaGood="up" sub="RCA+FR ÷ ran" color="#2E7D5B" info="Share of runs that produced a usable first response: RCA+FR ÷ all runs." />
+        <KPI icon={AlertTriangle} label="Failure rate" value={`${failRate}%`} delta={Math.round((failRate - failPrev) * 10) / 10} deltaGood="down" sub="failed ÷ attempted" color="#BF453B" info="Share of attempts that failed: failed ÷ (ran + skipped + failed)." />
+        <KPI icon={Star} label="Avg review" value={avg || "—"} sub="friday confidence /10" color="#C9A227" info="Average Friday confidence score (out of 10) across scored tickets." />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
@@ -681,6 +715,54 @@ function Overview({ cur, prev, range, span }) {
       <Panel title="By stage" icon={Layers} foot="coverage · FR use · failure colour at >15% · confidence /10">
         <DimMetrics rows={cur} dimKey="stage" values={D_STAGES} label="Stage" />
       </Panel>
+
+      <div style={{ height: 14 }} />
+      <Panel title="Tickets" icon={Ticket} foot={`${fmt(tix.length)} in view`}>
+        <div style={{ display: "flex", gap: 3, marginBottom: 12, flexWrap: "wrap" }}>
+          {[{ l: `All (${fmt(cur.length)})`, v: "all" }, ...STATES.map(st => ({ l: `${SLABEL[st]} (${fmt(c[st])})`, v: st }))].map(b => (
+            <button key={b.v} onClick={() => { setOutFilter(b.v); setPage(0); }}
+              style={{ border: `1px solid ${outFilter === b.v ? T.accent : T.line}`, background: outFilter === b.v ? T.accent : T.panel, color: outFilter === b.v ? "#fff" : T.muted, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>{b.l}</button>
+          ))}
+        </div>
+        {slice.length === 0 ? <Empty /> : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+              <thead><tr style={{ borderBottom: `1.5px solid ${T.line}` }}>
+                {["Ticket", "Org", "Created", "Severity", "Stage", "Outcome", "Score"].map((h, i) => (
+                  <th key={h} style={{ textAlign: i <= 1 ? "left" : "right", padding: "9px", fontSize: 10.5, fontWeight: 600, color: T.muted, textTransform: "uppercase", letterSpacing: 0.4, whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {slice.map((r, i) => (
+                  <tr key={r.id} style={{ borderBottom: `1px solid ${T.line}`, background: i % 2 ? "#FBFAF6" : "transparent" }}>
+                    <td style={{ padding: "9px", whiteSpace: "nowrap" }}>
+                      <a href={devLink(r.id)} target="_blank" rel="noreferrer" style={{ color: T.accent, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>{r.id}<ExternalLink size={11} /></a>
+                    </td>
+                    <td style={{ padding: "9px", whiteSpace: "nowrap" }}>{r.org}</td>
+                    <td style={{ textAlign: "right", padding: "9px", fontFamily: mono, whiteSpace: "nowrap" }}>{fmtLong(r.date)}</td>
+                    <td style={{ textAlign: "right", padding: "9px" }}>{r.sev}</td>
+                    <td style={{ textAlign: "right", padding: "9px", whiteSpace: "nowrap" }}>{r.stage}</td>
+                    <td style={{ textAlign: "right", padding: "9px", whiteSpace: "nowrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: SCOLOR[r.outcome] }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 3, background: SCOLOR[r.outcome], flexShrink: 0 }} />{SLABEL[r.outcome]}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: "right", padding: "9px", fontFamily: mono }}>{r.score ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, fontSize: 12, color: T.muted }}>
+          <span style={{ fontFamily: mono }}>{tix.length ? `Showing ${pg * PER + 1}–${Math.min(tix.length, pg * PER + PER)} of ${fmt(tix.length)}` : "0 of 0"}</span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button disabled={pg <= 0} onClick={() => setPage(p => Math.max(0, p - 1))} style={pagerBtn(pg <= 0)}>Prev</button>
+            <span style={{ fontFamily: mono }}>{pg + 1}/{pageCount}</span>
+            <button disabled={pg >= pageCount - 1} onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} style={pagerBtn(pg >= pageCount - 1)}>Next</button>
+          </div>
+        </div>
+      </Panel>
     </>
   );
 }
@@ -719,7 +801,6 @@ function FridayResponse({ cur, prev, range, eligibleOnly }) {
   const pageCount = Math.max(1, Math.ceil(tix.length / PER));
   const pg = Math.min(page, pageCount - 1);
   const slice = tix.slice(pg * PER, pg * PER + PER);
-  const pagerBtn = (dis) => ({ border: `1px solid ${T.line}`, background: T.panel, color: dis ? T.faint : T.ink, borderRadius: 8, padding: "5px 12px", fontSize: 12, cursor: dis ? "default" : "pointer", fontFamily: "inherit", opacity: dis ? 0.5 : 1 });
 
   const labels = [...new Set([...FRI_ORGS, ...scope.map(friLabel)])];
   const perOrg = labels.map(label => {
@@ -739,11 +820,11 @@ function FridayResponse({ cur, prev, range, eligibleOnly }) {
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
-        <KPI icon={Ticket} label="FR triggered" value={fmt(sent.length)} delta={sent.length - prevSent.length} sub={`of ${fmt(denom === 1 && !scope.length ? 0 : denom)} ${eligibleOnly ? "eligible" : "tickets"}`} />
-        <KPI icon={Gauge} label="FR coverage" value={`${cov}%`} delta={Math.round((cov - covPrev) * 10) / 10} deltaGood="up" sub="sent ÷ tickets" color="#2E7D5B" />
-        <KPI icon={Timer} label="Median latency" value={fmtDur(med)} sub="creation → 1st reply" color="#C9A227" />
-        <KPI icon={Timer} label="p90 latency" value={fmtDur(p90)} sub="creation → 1st reply" />
-        <KPI icon={Building2} label="Orgs responded" value={orgsResponded} sub={`of ${FRI_ORGS.length}`} />
+        <KPI icon={Ticket} label="FR triggered" value={fmt(sent.length)} delta={sent.length - prevSent.length} sub={`of ${fmt(denom === 1 && !scope.length ? 0 : denom)} ${eligibleOnly ? "eligible" : "tickets"}`} info="Tickets where Friday sent a customer-visible first response in this window." />
+        <KPI icon={Gauge} label="FR coverage" value={`${cov}%`} delta={Math.round((cov - covPrev) * 10) / 10} deltaGood="up" sub="sent ÷ tickets" color="#2E7D5B" info={`First responses sent ÷ tickets in scope (${FRI_ORGS.length} tracked orgs).`} />
+        <KPI icon={Timer} label="Median latency" value={fmtDur(med)} sub="creation → 1st reply" color="#C9A227" info="Median wall-clock time from ticket creation to Friday's first customer reply." />
+        <KPI icon={Timer} label="p90 latency" value={fmtDur(p90)} sub="creation → 1st reply" info="90% of first responses were sent within this time of ticket creation." />
+        <KPI icon={Building2} label="Orgs responded" value={orgsResponded} sub={`of ${FRI_ORGS.length}`} info="Unique tracked orgs that got at least one Friday first response." />
       </div>
 
       {sent.length === 0 ? (
