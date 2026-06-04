@@ -705,6 +705,19 @@ function FridayResponse({ cur, prev, range, eligibleOnly }) {
   const p90 = lat.length ? perc(lat, 90) : null;
   const orgsResponded = new Set(sent.map(r => friLabel(r))).size;
 
+  // Ticket drill-down table: filter by FR sent / not sent, 10 per page.
+  const [frFilter, setFrFilter] = useState("all");
+  const [page, setPage] = useState(0);
+  const tix = scope
+    .filter(r => frFilter === "all" ? true : frFilter === "sent" ? r.frSent : !r.frSent)
+    .slice()
+    .sort((a, b) => String(b.frSentAt || b.createdAt).localeCompare(String(a.frSentAt || a.createdAt)));
+  const PER = 10;
+  const pageCount = Math.max(1, Math.ceil(tix.length / PER));
+  const pg = Math.min(page, pageCount - 1);
+  const slice = tix.slice(pg * PER, pg * PER + PER);
+  const pagerBtn = (dis) => ({ border: `1px solid ${T.line}`, background: T.panel, color: dis ? T.faint : T.ink, borderRadius: 8, padding: "5px 12px", fontSize: 12, cursor: dis ? "default" : "pointer", fontFamily: "inherit", opacity: dis ? 0.5 : 1 });
+
   const labels = [...new Set([...FRI_ORGS, ...scope.map(friLabel)])];
   const perOrg = labels.map(label => {
     const sub = scope.filter(r => friLabel(r) === label);
@@ -779,6 +792,49 @@ function FridayResponse({ cur, prev, range, eligibleOnly }) {
           </Panel>
         </>
       )}
+
+      <div style={{ height: 14 }} />
+      <Panel title="Tickets" icon={Ticket} foot={`${fmt(tix.length)} in view`}>
+        <div style={{ display: "flex", gap: 3, marginBottom: 12, flexWrap: "wrap" }}>
+          {[{ l: `All (${fmt(scope.length)})`, v: "all" }, { l: `FR sent (${fmt(sent.length)})`, v: "sent" }, { l: `Not sent (${fmt(scope.length - sent.length)})`, v: "notsent" }].map(b => (
+            <button key={b.v} onClick={() => { setFrFilter(b.v); setPage(0); }}
+              style={{ border: `1px solid ${frFilter === b.v ? T.accent : T.line}`, background: frFilter === b.v ? T.accent : T.panel, color: frFilter === b.v ? "#fff" : T.muted, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>{b.l}</button>
+          ))}
+        </div>
+        {slice.length === 0 ? <Empty /> : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+              <thead><tr style={{ borderBottom: `1.5px solid ${T.line}` }}>
+                {["Ticket", "Org", "Created", "Severity", "FR sent", "Latency"].map((h, i) => (
+                  <th key={h} style={{ textAlign: i <= 1 ? "left" : "right", padding: "9px", fontSize: 10.5, fontWeight: 600, color: T.muted, textTransform: "uppercase", letterSpacing: 0.4, whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {slice.map((r, i) => (
+                  <tr key={r.id} style={{ borderBottom: `1px solid ${T.line}`, background: i % 2 ? "#FBFAF6" : "transparent" }}>
+                    <td style={{ padding: "9px", whiteSpace: "nowrap" }}>
+                      <a href={devLink(r.id)} target="_blank" rel="noreferrer" style={{ color: T.accent, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>{r.id}<ExternalLink size={11} /></a>
+                    </td>
+                    <td style={{ padding: "9px", whiteSpace: "nowrap" }}>{friLabel(r)}</td>
+                    <td style={{ textAlign: "right", padding: "9px", fontFamily: mono, whiteSpace: "nowrap" }}>{fmtLong(r.date)}</td>
+                    <td style={{ textAlign: "right", padding: "9px" }}>{r.sev}</td>
+                    <td style={{ textAlign: "right", padding: "9px", fontWeight: 600, color: r.frSent ? "#2E7D5B" : T.faint }}>{r.frSent ? "Sent ✓" : "—"}</td>
+                    <td style={{ textAlign: "right", padding: "9px", fontFamily: mono }}>{r.frSent ? fmtDur(r.frLatencyMin) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, fontSize: 12, color: T.muted }}>
+          <span style={{ fontFamily: mono }}>{tix.length ? `Showing ${pg * PER + 1}–${Math.min(tix.length, pg * PER + PER)} of ${fmt(tix.length)}` : "0 of 0"}</span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button disabled={pg <= 0} onClick={() => setPage(p => Math.max(0, p - 1))} style={pagerBtn(pg <= 0)}>Prev</button>
+            <span style={{ fontFamily: mono }}>{pg + 1}/{pageCount}</span>
+            <button disabled={pg >= pageCount - 1} onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))} style={pagerBtn(pg >= pageCount - 1)}>Next</button>
+          </div>
+        </div>
+      </Panel>
     </>
   );
 }
