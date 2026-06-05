@@ -1,13 +1,39 @@
 {
-  "generatedAt": "2026-06-05T19:03:17.347Z",
+  "generatedAt": "2026-06-05T21:41:32.074Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-07",
     "end": "2026-06-06",
     "days": 30
   },
-  "count": 2280,
+  "count": 2281,
   "rows": [
+    {
+      "id": "TKT-99915",
+      "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/99915",
+      "date": "2026-06-06",
+      "createdAt": "2026-06-05T19:58:21.268Z",
+      "daysAgo": 0,
+      "frSent": false,
+      "frSentAt": null,
+      "frLatencyMin": null,
+      "friOrgLabel": null,
+      "org": "Reliance (RIL)",
+      "cohort": "1-Reliance",
+      "pod": "TBD",
+      "sev": "medium",
+      "stage": "resolved",
+      "channel": "email",
+      "eligible": true,
+      "excludeReason": null,
+      "outcome": "RanFull",
+      "failReason": null,
+      "score": 7,
+      "scoreType": "confidence",
+      "frUsable": true,
+      "resolvedBy": "Support",
+      "sentiment": null
+    },
     {
       "id": "TKT-99914",
       "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/99914",
