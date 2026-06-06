@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-06T16:14:52.537Z",
+  "generatedAt": "2026-06-06T18:15:47.167Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-07",
@@ -46,9 +46,9 @@
       "friOrgLabel": null,
       "org": "myntrahl",
       "cohort": "3B- S (On Demand)",
-      "pod": "TBD",
+      "pod": "On Demand",
       "sev": "medium",
-      "stage": "queued",
+      "stage": "resolved",
       "channel": "email",
       "eligible": true,
       "excludeReason": null,
@@ -57,7 +57,7 @@
       "score": null,
       "scoreType": null,
       "frUsable": false,
-      "resolvedBy": null,
+      "resolvedBy": "Support",
       "sentiment": "Neutral"
     },
     {
@@ -98,9 +98,9 @@
       "friOrgLabel": null,
       "org": "Flipkart",
       "cohort": "3A-On Demand",
-      "pod": "TBD",
+      "pod": "On Demand",
       "sev": "medium",
-      "stage": "queued",
+      "stage": "resolved",
       "channel": "email",
       "eligible": true,
       "excludeReason": null,
@@ -109,7 +109,7 @@
       "score": 4,
       "scoreType": "confidence",
       "frUsable": true,
-      "resolvedBy": null,
+      "resolvedBy": "Support",
       "sentiment": "Frustrated"
     },
     {
@@ -750,7 +750,7 @@
       "cohort": "3A-On Demand",
       "pod": "On Demand",
       "sev": "medium",
-      "stage": "work_in_progress",
+      "stage": "awaiting_customer_response",
       "channel": "email",
       "eligible": true,
       "excludeReason": null,
@@ -828,7 +828,7 @@
       "cohort": "3B- S (On Demand)",
       "pod": "On Demand",
       "sev": "medium",
-      "stage": "work_in_progress",
+      "stage": "awaiting_customer_response",
       "channel": "email",
       "eligible": true,
       "excludeReason": null,
@@ -1686,7 +1686,7 @@
       "cohort": "1-DTDC",
       "pod": "Alpha",
       "sev": "low",
-      "stage": "awaiting_customer_response",
+      "stage": "work_in_progress",
       "channel": "portal",
       "eligible": true,
       "excludeReason": null,
@@ -1695,8 +1695,8 @@
       "score": 4,
       "scoreType": "confidence",
       "frUsable": true,
-      "resolvedBy": null,
-      "sentiment": null
+      "resolvedBy": "Support",
+      "sentiment": "Happy"
     },
     {
       "id": "TKT-99888",
@@ -2778,7 +2778,7 @@
       "cohort": "5A-B2B LSP",
       "pod": "Texas",
       "sev": "medium",
-      "stage": "awaiting_customer_response",
+      "stage": "work_in_progress",
       "channel": "portal",
       "eligible": true,
       "excludeReason": null,
@@ -2788,7 +2788,7 @@
       "scoreType": "confidence",
       "frUsable": true,
       "resolvedBy": "Support",
-      "sentiment": "Neutral"
+      "sentiment": "Frustrated"
     },
     {
       "id": "TKT-99844",
@@ -6548,7 +6548,7 @@
       "cohort": "3A-On Demand",
       "pod": "On Demand",
       "sev": "medium",
-      "stage": "Reopen",
+      "stage": "resolved",
       "channel": "email",
       "eligible": true,
       "excludeReason": null,
@@ -6626,7 +6626,7 @@
       "cohort": "2-Aramex",
       "pod": "On Demand",
       "sev": "medium",
-      "stage": "awaiting_customer_response",
+      "stage": "work_in_progress",
       "channel": "email",
       "eligible": true,
       "excludeReason": null,
