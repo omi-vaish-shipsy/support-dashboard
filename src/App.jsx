@@ -28,6 +28,26 @@ const SCOLOR = {
 const RAN = ["RanFull", "RanRCAOnly"];
 const ATTEMPTED = ["RanFull", "RanRCAOnly", "Skipped", "Failed"];
 
+// Why an eligible ticket got no Friday first response — read from Friday's internal
+// comments by the dataset pipeline (classify(), build-dataset.mjs). The 3 primary cases
+// are the "Friday produced no customer response" reasons; the two RAN cases mean Friday
+// did run (drafted internally) and are shown separately so the Not-sent total reconciles.
+const NOT_SENT_REASON = {
+  Skipped:        { l: "Skipped · org not mapped",   c: SCOLOR.Skipped,
+                    d: "Friday skipped: workspace not mapped to a Shipsy org." },
+  Failed:         { l: "Failed",                      c: SCOLOR.Failed,
+                    d: "Friday's auto-investigation errored before responding." },
+  NeverTriggered: { l: "Never triggered",             c: SCOLOR.NeverTriggered,
+                    d: "No Friday comment on the ticket — Friday never ran." },
+  RanFull:        { l: "Friday ran · draft not sent", c: SCOLOR.RanFull,
+                    d: "Friday drafted an RCA + first response; not posted to the customer." },
+  RanRCAOnly:     { l: "Friday ran · RCA only",       c: SCOLOR.RanRCAOnly,
+                    d: "Friday produced an RCA but no usable first-response draft." },
+};
+const NOT_SENT_PRIMARY = ["Skipped", "Failed", "NeverTriggered"];
+const NOT_SENT_ORDER = [...NOT_SENT_PRIMARY, "RanFull", "RanRCAOnly"];
+const notSentReason = (r) => NOT_SENT_REASON[r.outcome] || NOT_SENT_REASON.NeverTriggered;
+
 /* ================================================================== *
  *  SAMPLE DATA  — replace generator with live DevRev + Friday log feed
  * ================================================================== */
@@ -40,6 +60,10 @@ const addDays = (base, n) => { const d = new Date(base); d.setUTCDate(d.getUTCDa
 const REAL_WIN = Array.isArray(DATASET?.rows) && DATASET.rows.length && DATASET.window ? DATASET.window : null;
 const DATA_MIN = REAL_WIN ? REAL_WIN.start : iso(addDays(TODAY, -90));
 const DATA_MAX = REAL_WIN ? REAL_WIN.end : iso(TODAY);
+// Friday's first-response feature began producing data on this day; the Friday Response
+// tab counts only tickets created on/after this date (tickets before it never had a
+// chance at an FR). Permanent business cutoff — bump only if that launch date changes.
+const FRIDAY_FR_START = "2026-06-04";
 const fmtLong = (s) => new Date(s + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 const ORGS = [
   { n: "Delhivery", c: "Strategic", vol: 1.7, cov: 0.82 },
@@ -212,6 +236,7 @@ function applyFilters(rows, f, win) {
   return rows.filter(r =>
     dateOk(r) &&
     (!friday || friLabel(r)) &&                                                   // Friday tab: tracked orgs only
+    (!friday || r.date >= FRIDAY_FR_START) &&                                     // Friday tab: only tickets created on/after FR launch
     (f.org === "All" || (friday ? friLabel(r) === f.org : r.org === f.org)) &&    // ...and filter org by canonical label
     (f.cohort === "All" || r.cohort === f.cohort) &&
     (f.pod === "All" || r.pod === f.pod) &&
@@ -477,12 +502,22 @@ export default function App() {
   const [s, setS] = useState({ org: "All", cohort: "All", pod: "All", sev: "All", stage: "All", channel: "All", state: "All" });
   const set = (k) => (v) => setS(p => ({ ...p, [k]: v }));
   // Switching tabs resets filters — option sets differ per tab (e.g. org list), so selections don't carry over.
-  const switchView = (v) => { setView(v); setS({ org: "All", cohort: "All", pod: "All", sev: "All", stage: "All", channel: "All", state: "All" }); };
+  const switchView = (v) => {
+    setView(v);
+    setS({ org: "All", cohort: "All", pod: "All", sev: "All", stage: "All", channel: "All", state: "All" });
+    // Friday tab has a hard FR-launch floor; lift a pre-cutoff range start up to it.
+    if (v === "friday") setRange(r =>
+      r.mode === "range" && r.start < FRIDAY_FR_START
+        ? { ...r, start: FRIDAY_FR_START, end: r.end < FRIDAY_FR_START ? DATA_MAX : r.end }
+        : r);
+  };
   // Filter dropdown options are scoped to the active tab.
   const opt = view === "friday"
     ? { org: DF_ORGS, cohort: DF_COHORTS, pod: DF_PODS, sev: DF_SEVS, stage: DF_STAGES, channel: DF_CHANNELS }
     : { org: D_ORGS, cohort: D_COHORTS, pod: D_PODS, sev: D_SEVS, stage: D_STAGES, channel: D_CHANNELS };
 
+  // Friday tab can't go earlier than the FR-launch floor; constrains the start date input.
+  const dateMin = view === "friday" && DATA_MIN < FRIDAY_FR_START ? FRIDAY_FR_START : DATA_MIN;
   const span = spanDaysOf(range.start, range.end);
   const f = { ...range, eligibleOnly, view, ...s };
   const cur = useMemo(() => applyFilters(TICKETS, f), [f]);
@@ -544,7 +579,7 @@ export default function App() {
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: 0.5 }}>Date range — exact</span>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <input type="date" value={range.start} min={DATA_MIN} max={range.end}
+            <input type="date" value={range.start} min={dateMin} max={range.end}
               onChange={e => e.target.value && setRange(r => ({ ...r, mode: "range", start: e.target.value }))}
               style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 9, padding: "6px 10px", fontSize: 12.5, color: T.ink, fontFamily: "inherit", cursor: "pointer" }} />
             <span style={{ color: T.faint }}>→</span>
@@ -790,6 +825,12 @@ function FridayResponse({ cur, prev, range, eligibleOnly }) {
   const p90 = lat.length ? perc(lat, 90) : null;
   const orgsResponded = new Set(sent.map(r => friLabel(r))).size;
 
+  // "Why not sent" — bucket not-sent tickets by the reason read from Friday's comments.
+  const notSent = scope.filter(r => !r.frSent);
+  const reasonRows = NOT_SENT_ORDER
+    .map(s => ({ key: s, primary: NOT_SENT_PRIMARY.includes(s), ...NOT_SENT_REASON[s], n: notSent.filter(r => r.outcome === s).length }))
+    .filter(r => r.n > 0);
+
   // Ticket drill-down table: filter by FR sent / not sent, 10 per page.
   const [frFilter, setFrFilter] = useState("all");
   const [page, setPage] = useState(0);
@@ -885,11 +926,33 @@ function FridayResponse({ cur, prev, range, eligibleOnly }) {
               style={{ border: `1px solid ${frFilter === b.v ? T.accent : T.line}`, background: frFilter === b.v ? T.accent : T.panel, color: frFilter === b.v ? "#fff" : T.muted, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>{b.l}</button>
           ))}
         </div>
+        {frFilter === "notsent" && reasonRows.length > 0 && (
+          <div style={{ border: `1px solid ${T.line}`, borderRadius: 10, padding: "12px 14px", marginBottom: 14, background: "#FBFAF6" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 10 }}>
+              Why not sent <span style={{ fontFamily: mono, color: T.faint }}>({fmt(notSent.length)})</span>
+            </div>
+            {reasonRows.map((b, i) => {
+              const wpc = notSent.length ? Math.round(100 * b.n / notSent.length) : 0;
+              const divide = !b.primary && (reasonRows[i - 1]?.primary ?? false);
+              return (
+                <div key={b.key} title={b.d} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 9, marginTop: divide ? 12 : 0, paddingTop: divide ? 10 : 0, borderTop: divide ? `1px solid ${T.line}` : "none" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, width: 168, fontSize: 12, color: T.muted, flexShrink: 0 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 3, background: b.c, flexShrink: 0 }} />{b.l}
+                  </span>
+                  <div style={{ flex: 1, height: 8, background: "#EEEAE0", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ width: `${wpc}%`, height: "100%", background: b.c }} />
+                  </div>
+                  <span style={{ width: 64, textAlign: "right", fontFamily: mono, fontSize: 12 }}>{fmt(b.n)} · {wpc}%</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
         {slice.length === 0 ? <Empty /> : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead><tr style={{ borderBottom: `1.5px solid ${T.line}` }}>
-                {["Ticket", "Org", "Created", "Severity", "FR sent", "Latency"].map((h, i) => (
+                {["Ticket", "Org", "Created", "Severity", "FR sent", "Latency", "Why not sent"].map((h, i) => (
                   <th key={h} style={{ textAlign: i <= 1 ? "left" : "right", padding: "9px", fontSize: 10.5, fontWeight: 600, color: T.muted, textTransform: "uppercase", letterSpacing: 0.4, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr></thead>
@@ -904,6 +967,17 @@ function FridayResponse({ cur, prev, range, eligibleOnly }) {
                     <td style={{ textAlign: "right", padding: "9px" }}>{r.sev}</td>
                     <td style={{ textAlign: "right", padding: "9px", fontWeight: 600, color: r.frSent ? "#2E7D5B" : T.faint }}>{r.frSent ? "Sent ✓" : "—"}</td>
                     <td style={{ textAlign: "right", padding: "9px", fontFamily: mono }}>{r.frSent ? fmtDur(r.frLatencyMin) : "—"}</td>
+                    <td style={{ textAlign: "right", padding: "9px", whiteSpace: "nowrap" }}>
+                      {r.frSent ? <span style={{ color: T.faint }}>—</span> : (() => {
+                        const rs = notSentReason(r);
+                        return (
+                          <span title={rs.d} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: rs.c }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 3, background: rs.c, flexShrink: 0 }} />
+                            {rs.l}{r.failReason ? <span style={{ color: T.faint, fontWeight: 400 }}> · {r.failReason}</span> : null}
+                          </span>
+                        );
+                      })()}
+                    </td>
                   </tr>
                 ))}
               </tbody>
