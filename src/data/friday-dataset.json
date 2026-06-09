@@ -1,13 +1,39 @@
 {
-  "generatedAt": "2026-06-09T19:24:50.942Z",
+  "generatedAt": "2026-06-09T21:56:21.700Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-11",
     "end": "2026-06-10",
     "days": 30
   },
-  "count": 2287,
+  "count": 2288,
   "rows": [
+    {
+      "id": "TKT-100224",
+      "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/100224",
+      "date": "2026-06-10",
+      "createdAt": "2026-06-09T20:12:53.547Z",
+      "daysAgo": 0,
+      "frSent": false,
+      "frSentAt": null,
+      "frLatencyMin": null,
+      "friOrgLabel": null,
+      "org": "Reliance (RIL)",
+      "cohort": "1-Reliance",
+      "pod": "TBD",
+      "sev": "medium",
+      "stage": "resolved",
+      "channel": "email",
+      "eligible": true,
+      "excludeReason": null,
+      "outcome": "RanFull",
+      "failReason": null,
+      "score": 9,
+      "scoreType": "confidence",
+      "frUsable": true,
+      "resolvedBy": "Support",
+      "sentiment": null
+    },
     {
       "id": "TKT-100223",
       "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/100223",
@@ -11904,7 +11930,7 @@
       "cohort": "5A-B2B Shipper",
       "pod": "Texas",
       "sev": "medium",
-      "stage": "awaiting_customer_response",
+      "stage": "work_in_progress",
       "channel": "email",
       "eligible": true,
       "excludeReason": null,
@@ -11914,7 +11940,7 @@
       "scoreType": "confidence",
       "frUsable": true,
       "resolvedBy": "Support",
-      "sentiment": "Frustrated"
+      "sentiment": "Neutral"
     },
     {
       "id": "TKT-99710",
@@ -11956,7 +11982,7 @@
       "cohort": "2-HNK",
       "pod": "Brahmos",
       "sev": "low",
-      "stage": "awaiting_customer_response",
+      "stage": "work_in_progress",
       "channel": "portal",
       "eligible": true,
       "excludeReason": null,
@@ -11966,7 +11992,7 @@
       "scoreType": "confidence",
       "frUsable": true,
       "resolvedBy": "Product",
-      "sentiment": "Neutral"
+      "sentiment": "Frustrated"
     },
     {
       "id": "TKT-99708",
@@ -15908,7 +15934,7 @@
       "cohort": "3A-On Demand",
       "pod": "WMS Outbound",
       "sev": "medium",
-      "stage": "Reopen",
+      "stage": "awaiting_customer_response",
       "channel": "email",
       "eligible": false,
       "excludeReason": "WMS / Exim line",
@@ -17858,7 +17884,7 @@
       "cohort": "TBD",
       "pod": "WMS Inbound",
       "sev": "medium",
-      "stage": "Reopen",
+      "stage": "awaiting_customer_response",
       "channel": "portal",
       "eligible": false,
       "excludeReason": "WMS / Exim line",
@@ -25944,7 +25970,7 @@
       "cohort": "Exim",
       "pod": "EXIM",
       "sev": "medium",
-      "stage": "awaiting_customer_response",
+      "stage": "work_in_progress",
       "channel": "email",
       "eligible": false,
       "excludeReason": "WMS / Exim line",
@@ -25954,7 +25980,7 @@
       "scoreType": null,
       "frUsable": false,
       "resolvedBy": "Product",
-      "sentiment": "Frustrated"
+      "sentiment": "Happy"
     },
     {
       "id": "TKT-99108",
