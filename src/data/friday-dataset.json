@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-10T19:43:44.330Z",
+  "generatedAt": "2026-06-10T22:14:19.160Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-12",
@@ -177,7 +177,7 @@
       "org": "HNK-BR1-Support",
       "cohort": "2-HNK",
       "pod": "Mobile mad max",
-      "sev": "medium",
+      "sev": "high",
       "stage": "work_in_progress",
       "channel": "portal",
       "eligible": true,
@@ -2632,7 +2632,7 @@
       "scoreType": "confidence",
       "frUsable": true,
       "resolvedBy": "Support",
-      "sentiment": "Neutral"
+      "sentiment": "Unhappy"
     },
     {
       "id": "TKT-100228",
