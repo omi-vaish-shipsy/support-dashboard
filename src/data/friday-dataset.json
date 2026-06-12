@@ -1,13 +1,39 @@
 {
-  "generatedAt": "2026-06-12T19:14:46.971Z",
+  "generatedAt": "2026-06-12T21:58:12.911Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-14",
     "end": "2026-06-13",
     "days": 30
   },
-  "count": 2319,
+  "count": 2320,
   "rows": [
+    {
+      "id": "TKT-100544",
+      "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/100544",
+      "date": "2026-06-13",
+      "createdAt": "2026-06-12T19:44:04.713Z",
+      "daysAgo": 0,
+      "frSent": false,
+      "frSentAt": null,
+      "frLatencyMin": null,
+      "friOrgLabel": null,
+      "org": "Shipsy - Default Workspace",
+      "cohort": "Roadmap",
+      "pod": "TBD",
+      "sev": "medium",
+      "stage": "canceled",
+      "channel": "email",
+      "eligible": true,
+      "excludeReason": null,
+      "outcome": "RanFull",
+      "failReason": null,
+      "score": 7,
+      "scoreType": "confidence",
+      "frUsable": true,
+      "resolvedBy": null,
+      "sentiment": "Neutral"
+    },
     {
       "id": "TKT-100543",
       "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/100543",
