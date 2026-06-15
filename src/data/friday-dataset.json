@@ -1,13 +1,39 @@
 {
-  "generatedAt": "2026-06-15T21:18:17.832Z",
+  "generatedAt": "2026-06-15T23:54:38.487Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-17",
     "end": "2026-06-16",
     "days": 30
   },
-  "count": 2257,
+  "count": 2258,
   "rows": [
+    {
+      "id": "TKT-100718",
+      "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/100718",
+      "date": "2026-06-16",
+      "createdAt": "2026-06-15T21:25:18.916Z",
+      "daysAgo": 0,
+      "frSent": false,
+      "frSentAt": null,
+      "frLatencyMin": null,
+      "friOrgLabel": null,
+      "org": "The Whole Truth",
+      "cohort": "WMS",
+      "pod": "TBD",
+      "sev": "medium",
+      "stage": "queued",
+      "channel": "email",
+      "eligible": false,
+      "excludeReason": "WMS / Exim line",
+      "outcome": "Skipped",
+      "failReason": null,
+      "score": null,
+      "scoreType": null,
+      "frUsable": false,
+      "resolvedBy": null,
+      "sentiment": "Neutral"
+    },
     {
       "id": "TKT-100717",
       "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/100717",
