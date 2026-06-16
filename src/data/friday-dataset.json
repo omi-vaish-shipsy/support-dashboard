@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-16T21:16:09.310Z",
+  "generatedAt": "2026-06-16T23:42:42.801Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-18",
@@ -2934,7 +2934,7 @@
       "cohort": "WMS",
       "pod": "WMS Outbound",
       "sev": "medium",
-      "stage": "awaiting_customer_response",
+      "stage": "work_in_progress",
       "channel": "email",
       "eligible": false,
       "excludeReason": "WMS / Exim line",
@@ -2943,7 +2943,7 @@
       "score": null,
       "scoreType": null,
       "frUsable": false,
-      "resolvedBy": null,
+      "resolvedBy": "Support",
       "sentiment": "Neutral"
     },
     {
