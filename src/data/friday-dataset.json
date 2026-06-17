@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T20:26:44.234Z",
+  "generatedAt": "2026-06-17T22:50:47.300Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-19",
@@ -22122,7 +22122,7 @@
       "cohort": "2-Aramex",
       "pod": "Mobile mad max",
       "sev": "medium",
-      "stage": "awaiting_customer_response",
+      "stage": "work_in_progress",
       "channel": "email",
       "eligible": true,
       "excludeReason": null,
@@ -22132,7 +22132,7 @@
       "scoreType": "confidence",
       "frUsable": true,
       "resolvedBy": "Engineering",
-      "sentiment": "Unhappy"
+      "sentiment": "Happy"
     },
     {
       "id": "TKT-99990",
