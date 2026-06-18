@@ -1,13 +1,39 @@
 {
-  "generatedAt": "2026-06-17T22:50:47.300Z",
+  "generatedAt": "2026-06-18T00:23:45.053Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-19",
     "end": "2026-06-18",
     "days": 30
   },
-  "count": 2334,
+  "count": 2335,
   "rows": [
+    {
+      "id": "TKT-100934",
+      "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/100934",
+      "date": "2026-06-18",
+      "createdAt": "2026-06-18T00:18:42.756Z",
+      "daysAgo": 0,
+      "frSent": false,
+      "frSentAt": null,
+      "frLatencyMin": null,
+      "friOrgLabel": null,
+      "org": "Aramex Move",
+      "cohort": "Roadmap",
+      "pod": "TBD",
+      "sev": "medium",
+      "stage": "queued",
+      "channel": "email",
+      "eligible": true,
+      "excludeReason": null,
+      "outcome": "NeverTriggered",
+      "failReason": null,
+      "score": null,
+      "scoreType": null,
+      "frUsable": false,
+      "resolvedBy": null,
+      "sentiment": "Neutral"
+    },
     {
       "id": "TKT-100933",
       "don": "don:core:dvrv-us-1:devo/xXjPo9nF:ticket/100933",
@@ -22,7 +48,7 @@
       "cohort": "1-Reliance",
       "pod": "TBD",
       "sev": "medium",
-      "stage": "queued",
+      "stage": "resolved",
       "channel": "email",
       "eligible": true,
       "excludeReason": null,
@@ -31,7 +57,7 @@
       "score": 10,
       "scoreType": "confidence",
       "frUsable": true,
-      "resolvedBy": null,
+      "resolvedBy": "Support",
       "sentiment": "Neutral"
     },
     {
