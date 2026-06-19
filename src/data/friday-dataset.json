@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T21:19:18.026Z",
+  "generatedAt": "2026-06-19T23:08:17.891Z",
   "source": "devrev",
   "window": {
     "start": "2026-05-21",
@@ -22,7 +22,7 @@
       "cohort": "1-Reliance",
       "pod": "TBD",
       "sev": "medium",
-      "stage": "queued",
+      "stage": "resolved",
       "channel": "email",
       "eligible": true,
       "excludeReason": null,
@@ -31,7 +31,7 @@
       "score": 5,
       "scoreType": "confidence",
       "frUsable": true,
-      "resolvedBy": null,
+      "resolvedBy": "Support",
       "sentiment": "Neutral"
     },
     {
@@ -10448,7 +10448,7 @@
       "cohort": "WMS",
       "pod": "WMS Outbound",
       "sev": "medium",
-      "stage": "resolved",
+      "stage": "Reopen",
       "channel": "email",
       "eligible": false,
       "excludeReason": "WMS / Exim line",
